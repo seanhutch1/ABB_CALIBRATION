@@ -1,0 +1,41 @@
+# Node / frontend
+node_modules/
+dist/
+.vite/
+
+# Python / backend
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+.venv/
+venv/
+env/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Editor / OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+*.swp
+*~
+
+# Env / secrets
+.env
+.env.local
+.env.*.local
+
+# Runtime artefacts
+calibration.json
+*.log
+
+# Local-only / reference material — kept locally, not pushed
+.claude/
+CLAUDE.md
+Legacy Files for Reference/
+for_reference_only_copy_ofRAPIDFILES/
+PROGRESS_REPORT/
+rapid/

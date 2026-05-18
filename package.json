@@ -1,0 +1,11 @@
+{
+  "name": "abb-calibration",
+  "private": true,
+  "version": "0.0.1",
+  "description": "Vision-guided picking system for ABB IRB120 — clean rebuild.",
+  "scripts": {
+    "setup": "node setup.js",
+    "start": "node start.js",
+    "dev": "node start.js"
+  }
+}
