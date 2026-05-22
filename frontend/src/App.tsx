@@ -1,8 +1,16 @@
 import { useEffect, useRef, useState } from "react";
-import { CalibrationPanel, type CapturedCorner } from "./components/CalibrationPanel";
+import {
+  CalibrationPanel,
+  type CapturedCorner,
+  type StringTriple,
+} from "./components/CalibrationPanel";
 import { ClickReadout } from "./components/ClickReadout";
 import { IntrinsicsDropdown } from "./components/IntrinsicsDropdown";
 import { LayoutToggle, type Layout } from "./components/LayoutToggle";
+import {
+  MeasurementLog,
+  useMeasurementLog,
+} from "./components/MeasurementLog";
 import {
   MoveRobotPanel,
   useStoredZOffset,
@@ -44,10 +52,15 @@ export default function App() {
   const [mode, setMode] = useState<Mode>("view");
   const [calCorners, setCalCorners] = useState<CapturedCorner[]>([]);
   const [calUnits, setCalUnits] = useState<"mm" | "m">("mm");
+  const [calRobotInputsSeed, setCalRobotInputsSeed] = useState<
+    StringTriple[] | undefined
+  >(undefined);
   const [moveState, setMoveState] = useState<MoveState>({ kind: "idle" });
   const [zOffsetMm, setZOffsetMm] = useStoredZOffset(100);
   const [streamEpoch, setStreamEpoch] = useState(0);
   const wasConnected = useRef(false);
+  const [logOn, setLogOn] = useState(false);
+  const log = useMeasurementLog();
 
   // Initial intrinsics + calibration fetch
   useEffect(() => {
@@ -148,13 +161,36 @@ export default function App() {
         setMoveState({ kind: "err", pixel: [x, y], error: moveRes.err });
       } else {
         setMoveState({ kind: "ok", pixel: [x, y], target_mm: targetMm });
+        if (logOn) {
+          const cam = clickRes.ok.camera_xyz_m;
+          log.append({
+            mode: "move-robot",
+            pixel: [x, y],
+            depth_mm: clickRes.ok.depth_metres * 1000,
+            cam_xyz_mm: [cam[0] * 1000, cam[1] * 1000, cam[2] * 1000],
+            cmd_xyz_mm: targetMm,
+            snapped: clickRes.ok.snapped,
+          });
+        }
       }
       return;
     }
     setReadout({ kind: "loading", pixel: [x, y] });
     const res = await clickPixel(x, y, snap);
-    if ("ok" in res) setReadout({ kind: "ok", result: res.ok });
-    else setReadout({ kind: "err", pixel: [x, y], error: res.err });
+    if ("ok" in res) {
+      setReadout({ kind: "ok", result: res.ok });
+      if (logOn) {
+        const cam = res.ok.camera_xyz_m;
+        log.append({
+          mode: "view",
+          pixel: [x, y],
+          depth_mm: res.ok.depth_metres * 1000,
+          cam_xyz_mm: [cam[0] * 1000, cam[1] * 1000, cam[2] * 1000],
+          cmd_xyz_mm: null,
+          snapped: res.ok.snapped,
+        });
+      }
+    } else setReadout({ kind: "err", pixel: [x, y], error: res.err });
   };
 
   const onClick = isConnected ? handlePixel : undefined;
@@ -165,18 +201,66 @@ export default function App() {
     label: String(i + 1),
   }));
 
+  // Dragging a calibration corner. Move = visual only (just update the
+  // pixel so the X follows the cursor). Drop = re-deproject so the
+  // corner's camera_xyz_m matches its new pixel before the user saves.
+  const onMarkerMove = (index: number, x: number, y: number) => {
+    setCalCorners((cs) =>
+      cs.map((c, i) => (i === index ? { ...c, pixel: [x, y] } : c)),
+    );
+  };
+  const onMarkerDrop = async (index: number, x: number, y: number) => {
+    const res = await clickPixel(x, y, false);
+    if ("ok" in res) {
+      setCalCorners((cs) =>
+        cs.map((c, i) =>
+          i === index ? { pixel: [x, y], camera_xyz_m: res.ok.camera_xyz_m } : c,
+        ),
+      );
+    } else {
+      // Depth lookup failed at the drop pixel (likely a depth hole). Keep
+      // the pixel where the user dropped it but flag the issue in the
+      // readout so they know the corner's camera_xyz_m is now stale.
+      setReadout({ kind: "err", pixel: [x, y], error: res.err });
+    }
+  };
+
   const startCalibrate = () => {
     setMode("calibrate");
-    setCalCorners([]);
+    // Pre-fill corners and robot XYZ inputs from the loaded calibration so
+    // the user can re-capture one bad corner without re-typing all four
+    // robot coordinates. Units snap back to whatever was saved.
+    if (calibration && calibration.point_pairs.length > 0) {
+      setCalCorners(
+        calibration.point_pairs.map((pp) => ({
+          pixel: pp.pixel,
+          camera_xyz_m: pp.camera_xyz_m,
+        })),
+      );
+      setCalUnits(calibration.units_input as "mm" | "m");
+      const scale = calibration.units_input === "mm" ? 1000 : 1;
+      setCalRobotInputsSeed(
+        calibration.point_pairs.map((pp) => ({
+          x: String(pp.robot_xyz_m[0] * scale),
+          y: String(pp.robot_xyz_m[1] * scale),
+          z: String(pp.robot_xyz_m[2] * scale),
+        })),
+      );
+    } else {
+      setCalCorners([]);
+      setCalRobotInputsSeed(undefined);
+    }
   };
   const cancelCalibrate = () => {
     setMode("view");
     setCalCorners([]);
+    setCalRobotInputsSeed(undefined);
   };
   const onSavedCalibration = (cal: Calibration) => {
     setCalibration(cal);
     setMode("view");
     setCalCorners([]);
+    setCalRobotInputsSeed(undefined);
   };
 
   const startMoveRobot = () => {
@@ -210,6 +294,14 @@ export default function App() {
           >
             {mode === "move-robot" ? "Exit move mode" : "Move robot"}
           </button>
+          <button
+            type="button"
+            className={"calibrate-btn" + (logOn ? " calibrate-btn--active" : "")}
+            onClick={() => setLogOn((v) => !v)}
+            title="When on, every view-mode and move-robot click is appended to the measurement log"
+          >
+            {logOn ? `Log: on (${log.rows.length})` : "Log: off"}
+          </button>
           <LayoutToggle value={layout} onChange={setLayout} />
           <IntrinsicsDropdown status={status} intrinsics={intr} calibration={calibration} />
           <CameraStatusPill status={status} error={statusErr} />
@@ -233,6 +325,8 @@ export default function App() {
               intrinsicWidth={intr?.width}
               intrinsicHeight={intr?.height}
               markers={mode === "calibrate" ? calibMarkers : undefined}
+              onMarkerMove={mode === "calibrate" ? onMarkerMove : undefined}
+              onMarkerDrop={mode === "calibrate" ? onMarkerDrop : undefined}
             />
           )}
           {showDepth && (
@@ -257,6 +351,7 @@ export default function App() {
               }
               onSaved={onSavedCalibration}
               onCancel={cancelCalibrate}
+              initialRobotInputs={calRobotInputsSeed}
             />
           )}
           {mode === "move-robot" && (
@@ -279,6 +374,16 @@ export default function App() {
           )}
         </aside>
       </main>
+      {logOn && (
+        <section className="app__log">
+          <MeasurementLog
+            rows={log.rows}
+            onUpdate={log.update}
+            onDelete={log.remove}
+            onClear={log.clear}
+          />
+        </section>
+      )}
     </div>
   );
 }

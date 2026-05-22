@@ -241,20 +241,25 @@
 }
 .video-panel__marker {
   position: absolute;
-  transform: translate(-50%, -50%);
-  display: flex;
-  align-items: center;
-  gap: 4px;
+  /* No transform here — left/top is the exact click pixel. The cross
+     centres itself on this anchor and the label hangs off to one side. */
 }
-.video-panel__marker-dot {
-  width: 12px;
-  height: 12px;
-  border-radius: 50%;
-  background: #f9d27a;
-  border: 2px solid #14171c;
-  box-shadow: 0 0 0 1px #f9d27a;
+.video-panel__marker-cross {
+  position: absolute;
+  left: 0;
+  top: 0;
+  transform: translate(-50%, -50%);
+  pointer-events: auto;
+  cursor: grab;
+  overflow: visible;
+}
+.video-panel__marker-cross--dragging {
+  cursor: grabbing;
 }
 .video-panel__marker-label {
+  position: absolute;
+  left: 12px;
+  top: -14px;
   font-size: 11px;
   font-weight: 600;
   color: #14171c;
@@ -262,6 +267,8 @@
   border-radius: 4px;
   padding: 1px 5px;
   font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  white-space: nowrap;
+  pointer-events: none;
 }
 
 /* Calibration panel */
@@ -543,3 +550,82 @@
   font-size: 12px;
   color: #9aa0a6;
 }
+
+/* Measurement log (bottom drawer) */
+.app__log {
+  padding: 0 24px 24px;
+}
+.mlog {
+  background: #14171c;
+  border: 1px solid #1f2329;
+  border-radius: 8px;
+  padding: 12px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.mlog__head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.mlog__title {
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: #9aa0a6;
+  margin: 0;
+  font-weight: 600;
+}
+.mlog__actions {
+  display: flex;
+  gap: 8px;
+}
+.mlog__empty {
+  font-size: 12px;
+  color: #6f7681;
+  padding: 8px 0;
+  line-height: 1.5;
+}
+.mlog__empty em { color: #9aa0a6; font-style: italic; }
+.mlog__scroll {
+  overflow-x: auto;
+  border: 1px solid #1f2329;
+  border-radius: 6px;
+}
+.mlog__table {
+  width: 100%;
+  border-collapse: collapse;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 11px;
+  white-space: nowrap;
+}
+.mlog__table thead th {
+  background: #0e1014;
+  color: #6f7681;
+  font-weight: 600;
+  text-align: left;
+  padding: 6px 8px;
+  border-bottom: 1px solid #1f2329;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  font-size: 10px;
+}
+.mlog__table tbody td {
+  padding: 4px 8px;
+  color: #e6e8eb;
+  border-bottom: 1px solid #1a1d22;
+}
+.mlog__table tbody tr:hover td { background: #181b21; }
+.mlog__input {
+  width: 80px;
+  background: #0e1014;
+  border: 1px solid #1f2329;
+  color: #e6e8eb;
+  border-radius: 3px;
+  padding: 3px 6px;
+  font-family: inherit;
+  font-size: 11px;
+}
+.mlog__input--notes { width: 160px; }
+.mlog__input:focus { outline: none; border-color: #f9d27a; }

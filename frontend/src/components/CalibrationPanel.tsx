@@ -10,6 +10,8 @@ export type CapturedCorner = {
   camera_xyz_m: [number, number, number];
 };
 
+export type StringTriple = { x: string; y: string; z: string };
+
 type Props = {
   corners: CapturedCorner[];
   units: "mm" | "m";
@@ -18,11 +20,13 @@ type Props = {
   onRemoveCorner: (index: number) => void;
   onSaved: (cal: Calibration) => void;
   onCancel: () => void;
+  // Optional pre-fill for the robot XYZ text fields — used when entering
+  // Calibrate mode with an already-saved calibration so the user doesn't
+  // have to retype values they already entered.
+  initialRobotInputs?: StringTriple[];
 };
 
 const REQUIRED = 4;
-
-type StringTriple = { x: string; y: string; z: string };
 
 const emptyTriple = (): StringTriple => ({ x: "", y: "", z: "" });
 
@@ -34,9 +38,13 @@ export function CalibrationPanel({
   onRemoveCorner,
   onSaved,
   onCancel,
+  initialRobotInputs,
 }: Props) {
   const [robotInputs, setRobotInputs] = useState<StringTriple[]>(
-    Array.from({ length: REQUIRED }, emptyTriple),
+    () => {
+      const seed = initialRobotInputs ?? [];
+      return Array.from({ length: REQUIRED }, (_, i) => seed[i] ?? emptyTriple());
+    },
   );
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
