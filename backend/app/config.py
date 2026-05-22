@@ -14,12 +14,10 @@ class CameraProfile(BaseModel):
 
 # Two named camera profiles. USB 3 supports 640x480 @ 30 fps comfortably
 # for both color and depth. USB 2 cannot — drop to a configuration that
-# librealsense can actually resolve on D435 firmware. 15 fps BGR8 color
-# is USB 3 only on this device; 6 fps is the highest USB 2 will resolve
-# for simultaneous BGR8 + Z16 at the same resolution.
+# fits within USB 2.0/2.1 bandwidth.
 USB3_PROFILE = CameraProfile(name="USB 3 (full)", width=640, height=480, fps=30)
 USB2_PROFILE = CameraProfile(
-    name="USB 2 (degraded)", width=424, height=240, fps=6, is_degraded=True
+    name="USB 2 (degraded)", width=424, height=240, fps=15, is_degraded=True
 )
 
 
